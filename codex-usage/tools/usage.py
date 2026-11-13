@@ -175,16 +175,142 @@ def reset(binary, state_dir=None):
         return result
 
 
+# ── дешёвый путь: лимиты из журналов сессий Codex ──
+# Codex пишет rate_limits в каждое событие token_count журнала
+# ~/.codex/sessions/**/rollout-*.jsonl. Пока им пользуются, данные там свежие,
+# и запускать `codex app-server` (секунды CPU каждые 2 минуты) не нужно.
+
+CACHE = Path(os.environ.get('XDG_CACHE_HOME', str(Path.home() / '.cache'))) / 'noctalia-codex-usage' / 'app-server.json'
+
+
+def log_window(raw):
+    if not isinstance(raw, dict) or not number(raw.get('used_percent')):
+        return None
+    return {
+        'usedPercent': max(0, min(100, raw['used_percent'])),
+        'durationMins': raw.get('window_minutes') if number(raw.get('window_minutes')) else None,
+        'resetsAt': raw.get('resets_at') if number(raw.get('resets_at')) else None,
+    }
+
+
+def latest_log_limits(max_age):
+    """Последние rate_limits из журналов не старше max_age секунд (или None)."""
+    root = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex'))) / 'sessions'
+    now = time.time()
+    try:
+        files = sorted(root.glob('*/*/*/*.jsonl'), key=lambda f: f.stat().st_mtime, reverse=True)[:5]
+    except OSError:
+        return None
+    for f in files:
+        try:
+            if now - f.stat().st_mtime > max_age:
+                break
+            with f.open('rb') as fh:
+                fh.seek(0, os.SEEK_END)
+                size = fh.tell()
+                fh.seek(max(0, size - 2 * 1024 * 1024))
+                tail = fh.read().decode('utf-8', 'replace').splitlines()
+        except OSError:
+            continue
+        for line in reversed(tail):
+            if '"rate_limits"' not in line:
+                continue
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            limits = (rec.get('payload') or {}).get('rate_limits')
+            if not isinstance(limits, dict):
+                continue
+            try:
+                from datetime import datetime
+                at = datetime.fromisoformat(str(rec.get('timestamp')).replace('Z', '+00:00')).timestamp()
+            except ValueError:
+                at = f.stat().st_mtime
+            if now - at > max_age:
+                return None
+            return limits, int(at)
+    return None
+
+
+def from_logs(max_age):
+    found = latest_log_limits(max_age)
+    if not found:
+        return None
+    raw, at = found
+    credits = raw.get('credits') if isinstance(raw.get('credits'), dict) else {}
+    cached = load_cache() or {}
+    bucket = {
+        'id': str(raw.get('limit_id') or 'codex'), 'name': raw.get('limit_name') or str(raw.get('limit_id') or 'codex'),
+        'plan': raw.get('plan_type'),
+        'primary': log_window(raw.get('primary')), 'secondary': log_window(raw.get('secondary')),
+        'unlimitedCredits': credits.get('unlimited') is True,
+        'creditBalance': credits.get('balance'),
+        'reachedType': raw.get('rate_limit_reached_type'),
+    }
+    # в журнале только активный лимит — остальные корзины берём из кеша app-server
+    others = [b for b in cached.get('limits') or [] if isinstance(b, dict) and b.get('id') != bucket['id']]
+    return {'ok': True, 'fetchedAt': at, 'source': 'logs', 'limits': [bucket] + others,
+            'resetCredits': cached.get('resetCredits'), 'ordinaryUsageAllowed': cached.get('ordinaryUsageAllowed')}
+
+
+def load_cache():
+    try:
+        data = json.loads(CACHE.read_text())
+        return data if isinstance(data, dict) and data.get('ok') else None
+    except (OSError, ValueError):
+        return None
+
+
+def save_cache(result):
+    try:
+        CACHE.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        tmp = CACHE.with_suffix('.tmp')
+        tmp.write_text(json.dumps(result))
+        os.replace(tmp, CACHE)
+    except OSError:
+        pass
+
+
+def cheap_or_fetch(binary, logs_max_age, app_interval):
+    """Журналы → кеш app-server → app-server (только если всё устарело)."""
+    result = from_logs(logs_max_age)
+    if result:
+        return result
+    cached = load_cache()
+    if cached and time.time() - cached.get('fetchedAt', 0) < app_interval:
+        cached['source'] = 'cache'
+        return cached
+    if binary is None:
+        raise UsageError('missing_codex')
+    result = fetch(binary)
+    result['source'] = 'app-server'
+    save_cache(result)
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--codex', default='codex')
     parser.add_argument('--reset', action='store_true', help='Consume one reset credit; only after user confirmation')
+    parser.add_argument('--logs-max-age', type=int, default=900, help='журнал свежее N с — брать лимиты из него')
+    parser.add_argument('--app-interval', type=int, default=900, help='app-server не чаще раза в N с')
+    parser.add_argument('--force', action='store_true', help='спросить app-server сейчас (ручное обновление)')
     args = parser.parse_args()
     binary = shutil.which(os.path.expanduser(args.codex))
     try:
-        if binary is None:
-            raise UsageError('missing_codex')
-        result = reset(binary) if args.reset else fetch(binary)
+        if args.reset:
+            if binary is None:
+                raise UsageError('missing_codex')
+            result = reset(binary)
+        elif args.force:
+            if binary is None:
+                raise UsageError('missing_codex')
+            result = fetch(binary)
+            result['source'] = 'app-server'
+            save_cache(result)
+        else:
+            result = cheap_or_fetch(binary, args.logs_max_age, args.app_interval)
     except UsageError as error:
         result = {'ok': False, 'error': str(error), 'checkedAt': int(time.time())}
     except Exception:

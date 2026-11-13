@@ -66,13 +66,18 @@ local function publish(error)
   })
 end
 
-local function refresh()
+-- force: спросить app-server сейчас (ручное обновление, после сброса).
+-- Иначе usage.py берёт лимиты из журналов сессий Codex, а app-server
+-- запускает не чаще раза в 15 минут.
+local function refresh(force)
   if busy then return end
   busy = true
   nextPoll = noctalia.nowMs() + math.max(60, tonumber(noctalia.getConfig("refresh_seconds")) or 120) * 1000
   publish(nil)
-  local accepted = noctalia.runAsync({ "python3", noctalia.pluginDir() .. "/tools/usage.py",
-    "--codex", noctalia.expandPath(noctalia.getConfig("codex_path") or "codex") }, function(result)
+  local args = { "python3", noctalia.pluginDir() .. "/tools/usage.py",
+    "--codex", noctalia.expandPath(noctalia.getConfig("codex_path") or "codex") }
+  if force then table.insert(args, "--force") end
+  local accepted = noctalia.runAsync(args, function(result)
     busy = false
     local ok, data = pcall(noctalia.json.decode, result.stdout or "")
     if result.exitCode == 0 and ok and type(data) == "table" and data.ok == true then
@@ -97,7 +102,7 @@ noctalia.state.watch("usage.refresh", function()
   -- Guard rapid repeated clicks as well as concurrent requests.
   if noctalia.nowMs() - lastManual < 5000 then return end
   lastManual = noctalia.nowMs()
-  refresh()
+  refresh(true)
   refreshStats()
 end)
 noctalia.state.watch("usage.panelOpen", function(value)
@@ -125,7 +130,7 @@ noctalia.state.watch("usage.reset", function()
     else
       noctalia.state.set("usage.resetStatus", { error = ok and type(data) == "table" and data.error or "unavailable" })
     end
-    refresh()
+    refresh(true)
   end)
   if not accepted then
     busy = false

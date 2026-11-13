@@ -223,7 +223,8 @@ function render()
     fontSize = 10, color = "on_surface_variant", maxLines = 4 }))
 
   local updated = state.loading and "обновляется…"
-    or (snap and ("обновлено " .. noctalia.formatTime("%H:%M:%S", snap.fetchedAt)) or "нет данных")
+    or (snap and ("обновлено " .. noctalia.formatTime("%H:%M:%S", snap.fetchedAt)
+      .. (snap.source == "logs" and " · из журнала Codex" or snap.source == "cache" and " · кеш" or "")) or "нет данных")
   panel.render(ui.column({ gap = 14, flexGrow = 1 }, {
     header(snap),
     ui.scroll({ flexGrow = 1, gap = 12 }, body),

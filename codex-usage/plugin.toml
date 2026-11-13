@@ -1,6 +1,6 @@
 id = "pvs/codex-usage"
 name = "Codex Usage"
-version = "1.5.0"
+version = "1.6.0"
 plugin_api = 43
 author = "pvs"
 license = "MIT"

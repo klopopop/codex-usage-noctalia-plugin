@@ -25,7 +25,7 @@ function M.color(percent)
 end
 function M.stale(state)
   return state.error ~= nil or (state.snapshot ~= nil and
-    noctalia.nowMs() / 1000 - state.snapshot.fetchedAt > math.max(60, tonumber(noctalia.getConfig("refresh_seconds")) or 120) * 2)
+    noctalia.nowMs() / 1000 - state.snapshot.fetchedAt > math.max(900, tonumber(noctalia.getConfig("refresh_seconds")) or 120) * 2)
 end
 function M.error(code)
   if code == "login_required" then return "Нужен вход через codex login с аккаунтом ChatGPT." end
