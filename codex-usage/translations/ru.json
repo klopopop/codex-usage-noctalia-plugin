@@ -1,0 +1,6 @@
+{
+  "settings.refresh.label": "Обновление, секунд",
+  "settings.codex.label": "Путь к Codex CLI",
+  "settings.weekly.label": "Второе окно лимита в баре",
+  "settings.directory.label": "Рабочая папка терминала Codex"
+}

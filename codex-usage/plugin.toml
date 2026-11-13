@@ -1,0 +1,66 @@
+id = "pvs/codex-usage"
+name = "Codex Usage"
+version = "1.4.0"
+plugin_api = 43
+author = "pvs"
+license = "MIT"
+icon = "terminal-2"
+description = "Лимиты Codex: индикатор в баре, окна использования и время сброса."
+tags = ["productivity", "monitoring"]
+dependencies = ["python3", "codex", "kitty", "hyprctl", "xdg-open"]
+
+[[service]]
+id = "service"
+entry = "service.luau"
+
+[[widget]]
+id = "bar"
+entry = "bar.luau"
+
+[[panel]]
+id = "panel"
+entry = "panel.luau"
+width = 470
+height = 700
+placement = "floating"
+position = "top_right"
+keyboard_focus = "on_demand"
+capture_keys = ["ctrl+r"]
+
+[[setting]]
+key = "refresh_seconds"
+type = "int"
+label_key = "settings.refresh.label"
+default = 120
+min = 60
+max = 1800
+
+[[setting]]
+key = "codex_path"
+type = "string"
+label_key = "settings.codex.label"
+default = "codex"
+
+[[setting]]
+key = "show_weekly"
+type = "bool"
+label_key = "settings.weekly.label"
+default = true
+
+[[setting]]
+key = "terminal_directory"
+type = "string"
+label_key = "settings.directory.label"
+default = "~"
+
+[[layer]]
+id = "preview"
+entry = "preview.luau"
+layer = "overlay"
+anchors = ["top", "left"]
+width = 350
+height = 350
+exclusive_zone = -1
+keyboard = "none"
+click_through = true
+output = "focused"

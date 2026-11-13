@@ -1,0 +1,6 @@
+{
+  "settings.refresh.label": "Refresh interval, seconds",
+  "settings.codex.label": "Codex CLI path",
+  "settings.weekly.label": "Show secondary window in bar",
+  "settings.directory.label": "Codex terminal working directory"
+}
