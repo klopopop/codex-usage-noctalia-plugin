@@ -2,5 +2,7 @@
   "settings.refresh.label": "Обновление, секунд",
   "settings.codex.label": "Путь к Codex CLI",
   "settings.weekly.label": "Второе окно лимита в баре",
-  "settings.directory.label": "Рабочая папка терминала Codex"
+  "settings.directory.label": "Рабочая папка терминала Codex",
+  "settings.meter.label": "Мини-шкала короткого окна в баре",
+  "settings.notify.label": "Уведомления: 80% и 95% лимита, сброс"
 }

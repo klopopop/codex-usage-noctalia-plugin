@@ -2,5 +2,7 @@
   "settings.refresh.label": "Refresh interval, seconds",
   "settings.codex.label": "Codex CLI path",
   "settings.weekly.label": "Show secondary window in bar",
-  "settings.directory.label": "Codex terminal working directory"
+  "settings.directory.label": "Codex terminal working directory",
+  "settings.meter.label": "Short window mini meter in the bar",
+  "settings.notify.label": "Notify at 80% and 95% and on reset"
 }

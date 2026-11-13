@@ -1,11 +1,11 @@
 id = "pvs/codex-usage"
 name = "Codex Usage"
-version = "1.4.0"
+version = "1.5.0"
 plugin_api = 43
 author = "pvs"
 license = "MIT"
 icon = "terminal-2"
-description = "Лимиты Codex: индикатор в баре, окна использования и время сброса."
+description = "Лимиты Codex с темпом и прогнозом, статистика Codex: дни, часы, модели, проекты."
 tags = ["productivity", "monitoring"]
 dependencies = ["python3", "codex", "kitty", "hyprctl", "xdg-open"]
 
@@ -20,8 +20,8 @@ entry = "bar.luau"
 [[panel]]
 id = "panel"
 entry = "panel.luau"
-width = 470
-height = 700
+width = 560
+height = 1120
 placement = "floating"
 position = "top_right"
 keyboard_focus = "on_demand"
@@ -34,6 +34,18 @@ label_key = "settings.refresh.label"
 default = 120
 min = 60
 max = 1800
+
+[[setting]]
+key = "bar_meter"
+type = "bool"
+label_key = "settings.meter.label"
+default = true
+
+[[setting]]
+key = "notify"
+type = "bool"
+label_key = "settings.notify.label"
+default = true
 
 [[setting]]
 key = "codex_path"
@@ -58,8 +70,8 @@ id = "preview"
 entry = "preview.luau"
 layer = "overlay"
 anchors = ["top", "left"]
-width = 350
-height = 350
+width = 380
+height = 470
 exclusive_zone = -1
 keyboard = "none"
 click_through = true

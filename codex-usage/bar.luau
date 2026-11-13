@@ -29,7 +29,7 @@ local function showPreview()
       end
     end
     if output == nil or type(cursor.x) ~= "number" or type(cursor.y) ~= "number" then return end
-    local width, height = math.min(350, output.width - 16), math.min(350, output.height - 16)
+    local width, height = math.min(380, output.width - 16), math.min(470, output.height - 16)
     local px, py = cursor.x - output.x, cursor.y - output.y
     local x = math.max(8, math.min(output.width - width - 8, px - width / 2))
     local y = py < output.height / 2 and (py + 25) or (py - height - 18)
@@ -60,7 +60,18 @@ function update()
   if stale then text ..= " !" end
   local color = stale and "on_surface_variant" or (primary and fmt.color(primary.usedPercent) or "on_surface_variant")
   local children = { ui.glyph({ name = "terminal-2", size = 16, color = color }) }
-  if not barWidget.isVertical() then table.insert(children, ui.label({ text = text, color = color })) end
+  if not barWidget.isVertical() then
+    table.insert(children, ui.label({ text = text, color = color }))
+    -- мини-шкала короткого окна с отметкой «по графику»
+    if primary and noctalia.getConfig("bar_meter") ~= false then
+      local limit = fmt.toLimit(primary, 1, bucket)
+      table.insert(children, ui.progress({
+        progress = primary.usedPercent / 100, width = 28, height = 5, radius = 3,
+        fill = stale and "on_surface_variant" or fmt.accent(limit), track = "on_surface/0.15",
+        marker = fmt.elapsed(limit), markerColor = "on_surface/0.7",
+      }))
+    end
+  end
   local container = barWidget.isVertical() and ui.column or ui.row
   barWidget.clearTooltip()
   barWidget.render(container({ gap = 6, align = "center", onHover = "onWidgetHover" }, children))
