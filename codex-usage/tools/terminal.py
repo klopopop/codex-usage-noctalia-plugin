@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Show one persistent Kitty/Codex window; Escape hides its special workspace."""
+"""Show one persistent Kitty/Codex window; F12 hides its special workspace."""
 import argparse
 import fcntl
 import json
@@ -64,15 +64,13 @@ def show(codex, directory):
         client = window()
         if client is None:
             helper = str(Path(__file__).resolve())
-            escape = 'map=escape launch --type=background ' + shlex.join([sys.executable, helper, 'hide'])
-            # Kitty owns Escape for this window: it never reaches the Codex PTY.
-            # ctrl+shift+Escape sends a literal Escape when the application needs it.
+            # Esc остаётся за Codex (прерывание и т.п.), прячет окно F12 — как у выпадашки Claude.
+            hide_key = 'map=f12 launch --type=background ' + shlex.join([sys.executable, helper, 'hide'])
             with open(os.devnull, 'wb') as output:
                 child = subprocess.Popen([
-                    'kitty', '--class', CLASS, '--title', 'Codex · Esc — скрыть',
+                    'kitty', '--class', CLASS, '--title', 'Codex · F12 — скрыть',
                     '--directory', str(directory), '--session', 'none',
-                    '--override', escape,
-                    '--override', 'map=ctrl+shift+escape send_text all \\x1b',
+                    '--override', hide_key,
                     '--override', 'confirm_os_window_close=1',
                     binary,
                 ], stdin=subprocess.DEVNULL, stdout=output, stderr=output, start_new_session=True)
@@ -99,15 +97,25 @@ def show(codex, directory):
             hypr('dispatch', 'hl.dsp.workspace.toggle_special("codex")')
 
 
+def toggle(codex, directory):
+    # Повтор горячей клавиши: виден — спрятать (фокус неважен), иначе показать.
+    if visible_monitor() is not None and window() is not None:
+        hypr('dispatch', 'hl.dsp.workspace.toggle_special("codex")')
+        return
+    show(codex, directory)
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['show', 'hide'])
+    parser.add_argument('action', choices=['show', 'hide', 'toggle'])
     parser.add_argument('--codex', default='codex')
     parser.add_argument('--directory', default='~')
     args = parser.parse_args()
     try:
         if args.action == 'hide':
             hide()
+        elif args.action == 'toggle':
+            toggle(args.codex, args.directory)
         else:
             show(args.codex, args.directory)
     except TerminalError as error:
